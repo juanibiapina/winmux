@@ -1,94 +1,78 @@
-// hello_world example for x11-rs
-
 extern crate libc;
 extern crate x11;
 
 use std::ffi::CString;
 use std::mem::zeroed;
-use std::ptr::{
-  null,
-  null_mut,
-};
 
-use std::os::raw::c_uint;
+use libc::{c_int, c_uint};
+
 use x11::xlib;
 
-const TITLE: &'static str = "Hello World!";
-const DEFAULT_WIDTH: c_uint = 640;
-const DEFAULT_HEIGHT: c_uint = 480;
+fn max(a : c_int, b : c_int) -> c_uint { if a > b { a as c_uint } else { b as c_uint } }
 
+fn main() {
+    let mut arg0 = 0x0 as i8;
+    let display : *mut xlib::Display = unsafe { xlib::XOpenDisplay(&mut arg0) };
 
-fn main () {
-  unsafe {
-    // Open display
-    let display = xlib::XOpenDisplay(null());
-    if display == null_mut() {
-      panic!("can't open display");
+    let mut attr: xlib::XWindowAttributes = unsafe { zeroed() };
+    let mut start: xlib::XButtonEvent = unsafe { zeroed() };
+
+    if display.is_null() {
+        std::process::exit(1);
     }
 
-    // Load atoms
-    let wm_delete_window_str = CString::new("WM_DELETE_WINDOW").unwrap();
-    let wm_protocols_str = CString::new("WM_PROTOCOLS").unwrap();
+    let f1 = CString::new("F1").unwrap();
+    unsafe {
+        xlib::XGrabKey(display, xlib::XKeysymToKeycode(display, xlib::XStringToKeysym(f1.as_ptr())) as c_int, xlib::Mod1Mask,
+        xlib::XDefaultRootWindow(display), true as c_int, xlib::GrabModeAsync, xlib::GrabModeAsync);
 
-    let wm_delete_window = xlib::XInternAtom(display, wm_delete_window_str.as_ptr(), xlib::False);
-    let wm_protocols = xlib::XInternAtom(display, wm_protocols_str.as_ptr(), xlib::False);
+        xlib::XGrabButton(display, 1, xlib::Mod1Mask, xlib::XDefaultRootWindow(display), true as c_int,
+        (xlib::ButtonPressMask|xlib::ButtonReleaseMask|xlib::PointerMotionMask) as c_uint, xlib::GrabModeAsync, xlib::GrabModeAsync,
+        0, 0);
+        xlib::XGrabButton(display, 3, xlib::Mod1Mask, xlib::XDefaultRootWindow(display), true as c_int,
+        (xlib::ButtonPressMask|xlib::ButtonReleaseMask|xlib::PointerMotionMask) as c_uint, xlib::GrabModeAsync, xlib::GrabModeAsync,
+        0, 0);
+    };
 
-    if wm_delete_window == 0 || wm_protocols == 0 {
-      panic!("can't load atoms");
-    }
+    start.subwindow = 0;
 
-    // Create window
-    let screen_num = xlib::XDefaultScreen(display);
-    let root = xlib::XRootWindow(display, screen_num);
-    let white_pixel = xlib::XWhitePixel(display, screen_num);
-
-    let mut attributes: xlib::XSetWindowAttributes = zeroed();
-    attributes.background_pixel = white_pixel;
-
-    let window = xlib::XCreateWindow(display, root, 0, 0, DEFAULT_WIDTH, DEFAULT_HEIGHT, 0, 0,
-                                     xlib::InputOutput as c_uint, null_mut(),
-                                     xlib::CWBackPixel, &mut attributes);
-
-    // Set window title
-    let title_str = CString::new(TITLE).unwrap();
-    xlib::XStoreName(display, window, title_str.as_ptr() as *mut _);
-
-    // Subscribe to delete (close) events
-    let mut protocols = [wm_delete_window];
-
-    if xlib::XSetWMProtocols(display, window, &mut protocols[0] as *mut xlib::Atom, 1) == xlib::False {
-      panic!("can't set WM protocols");
-    }
-
-    // Show window
-    xlib::XMapWindow(display, window);
-
-    // Main loop
-    let mut event: xlib::XEvent = zeroed();
+    let mut event: xlib::XEvent = unsafe { zeroed() };
 
     loop {
-      xlib::XNextEvent(display, &mut event);
-      match event.get_type() {
-        xlib::ClientMessage => {
-          let xclient: xlib::XClientMessageEvent = From::from(event);
+        unsafe {
+            xlib::XNextEvent(display, &mut event);
 
-          // WM_PROTOCOLS client message
-          if xclient.message_type == wm_protocols && xclient.format == 32 {
-            let protocol = xclient.data.get_long(0) as xlib::Atom;
-
-            // WM_DELETE_WINDOW (close event)
-            if protocol == wm_delete_window {
-              break;
-            }
-          }
-        },
-
-        _ => {},
-      }
+            match event.get_type() {
+                xlib::KeyPress => {
+                    let xkey: xlib::XKeyEvent = From::from(event);
+                    if xkey.subwindow != 0 {
+                        xlib::XRaiseWindow(display, xkey.subwindow);
+                    }
+                },
+                xlib::ButtonPress => {
+                    let xbutton: xlib::XButtonEvent = From::from(event);
+                    if xbutton.subwindow != 0 {
+                        xlib::XGetWindowAttributes(display, xbutton.subwindow, &mut attr);
+                        start = xbutton;
+                    }
+                },
+                xlib::MotionNotify => {
+                    if start.subwindow != 0 {
+                        let xbutton: xlib::XButtonEvent = From::from(event);
+                        let xdiff : c_int = xbutton.x_root - start.x_root;
+                        let ydiff : c_int = xbutton.y_root - start.y_root;
+                        xlib::XMoveResizeWindow(display, start.subwindow,
+                                                attr.x + (if start.button==1 { xdiff } else { 0 }),
+                                                attr.y + (if start.button==1 { ydiff } else { 0 }),
+                                                max(1, attr.width + (if start.button==3 { xdiff } else { 0 })),
+                                                max(1, attr.height + (if start.button==3 { ydiff } else { 0 })));
+                    }
+                },
+                xlib::ButtonRelease => {
+                    start.subwindow = 0;
+                },
+                _ => {}
+            };
+        }
     }
-
-    // Clean up
-    xlib::XDestroyWindow(display, window);
-    xlib::XCloseDisplay(display);
-  }
 }
