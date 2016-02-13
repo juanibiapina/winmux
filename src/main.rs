@@ -22,8 +22,15 @@ fn main() {
     }
 
     let f1 = CString::new("F1").unwrap();
+    let f2 = CString::new("F2").unwrap();
+
+    let f1_keysym = unsafe { xlib::XStringToKeysym(f1.as_ptr()) };
+    let f2_keysym = unsafe { xlib::XStringToKeysym(f2.as_ptr()) };
     unsafe {
-        xlib::XGrabKey(display, xlib::XKeysymToKeycode(display, xlib::XStringToKeysym(f1.as_ptr())) as c_int, xlib::Mod1Mask,
+        xlib::XGrabKey(display, xlib::XKeysymToKeycode(display, f1_keysym) as c_int, xlib::Mod1Mask,
+        xlib::XDefaultRootWindow(display), true as c_int, xlib::GrabModeAsync, xlib::GrabModeAsync);
+
+        xlib::XGrabKey(display, xlib::XKeysymToKeycode(display, f2_keysym) as c_int, xlib::Mod1Mask,
         xlib::XDefaultRootWindow(display), true as c_int, xlib::GrabModeAsync, xlib::GrabModeAsync);
 
         xlib::XGrabButton(display, 1, xlib::Mod1Mask, xlib::XDefaultRootWindow(display), true as c_int,
@@ -44,9 +51,16 @@ fn main() {
 
             match event.get_type() {
                 xlib::KeyPress => {
-                    let xkey: xlib::XKeyEvent = From::from(event);
-                    if xkey.subwindow != 0 {
-                        xlib::XRaiseWindow(display, xkey.subwindow);
+                    let event: xlib::XKeyEvent = From::from(event);
+                    let keysym = xlib::XKeycodeToKeysym(display, event.keycode as u8, 0) as u64;
+                    if keysym == f1_keysym {
+                        if event.subwindow != 0 {
+                            xlib::XRaiseWindow(display, event.subwindow);
+                        }
+                    }
+
+                    if keysym == f2_keysym {
+                        std::process::exit(0);
                     }
                 },
                 xlib::ButtonPress => {
