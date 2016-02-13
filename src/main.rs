@@ -14,12 +14,12 @@ fn main() {
     let mut arg0 = 0x0 as i8;
     let display : *mut xlib::Display = unsafe { xlib::XOpenDisplay(&mut arg0) };
 
-    let mut attr: xlib::XWindowAttributes = unsafe { zeroed() };
-    let mut start: xlib::XButtonEvent = unsafe { zeroed() };
-
     if display.is_null() {
         std::process::exit(1);
     }
+
+    let mut attr: xlib::XWindowAttributes = unsafe { zeroed() };
+    let mut start: xlib::XButtonEvent = unsafe { zeroed() };
 
     let f1 = CString::new("F1").unwrap();
     let f2 = CString::new("F2").unwrap();
