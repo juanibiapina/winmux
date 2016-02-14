@@ -1,3 +1,5 @@
+extern crate winmux;
+
 extern crate libc;
 extern crate x11;
 
@@ -9,6 +11,9 @@ use std::mem::zeroed;
 use libc::{c_int, c_uint, execvp};
 
 use x11::xlib;
+
+use winmux::key_modifier;
+use winmux::key_modifier::KeyModifier;
 
 fn max(a : c_int, b : c_int) -> c_uint { if a > b { a as c_uint } else { b as c_uint } }
 
@@ -32,13 +37,13 @@ fn main() {
     let f3_keysym = unsafe { xlib::XStringToKeysym(f3.as_ptr()) };
 
     unsafe {
-        xlib::XGrabKey(display, xlib::XKeysymToKeycode(display, f1_keysym) as c_int, xlib::Mod1Mask,
+        xlib::XGrabKey(display, xlib::XKeysymToKeycode(display, f1_keysym) as c_int, xlib::AnyModifier,
         xlib::XDefaultRootWindow(display), true as c_int, xlib::GrabModeAsync, xlib::GrabModeAsync);
 
-        xlib::XGrabKey(display, xlib::XKeysymToKeycode(display, f2_keysym) as c_int, xlib::Mod1Mask,
+        xlib::XGrabKey(display, xlib::XKeysymToKeycode(display, f2_keysym) as c_int, xlib::AnyModifier,
         xlib::XDefaultRootWindow(display), true as c_int, xlib::GrabModeAsync, xlib::GrabModeAsync);
 
-        xlib::XGrabKey(display, xlib::XKeysymToKeycode(display, f3_keysym) as c_int, xlib::Mod1Mask,
+        xlib::XGrabKey(display, xlib::XKeysymToKeycode(display, f3_keysym) as c_int, xlib::AnyModifier,
         xlib::XDefaultRootWindow(display), true as c_int, xlib::GrabModeAsync, xlib::GrabModeAsync);
 
         xlib::XGrabButton(display, 1, xlib::Mod1Mask, xlib::XDefaultRootWindow(display), true as c_int,
@@ -64,17 +69,18 @@ fn main() {
                 xlib::KeyPress => {
                     let event: xlib::XKeyEvent = From::from(event);
                     let keysym = xlib::XKeycodeToKeysym(display, event.keycode as u8, 0) as u64;
-                    if keysym == f1_keysym {
+                    let keymodifier = KeyModifier::from_bits(0xEF & event.state as u32).unwrap();
+                    if keysym == f1_keysym && keymodifier == key_modifier::NONEMASK {
                         if event.subwindow != 0 {
                             xlib::XRaiseWindow(display, event.subwindow);
                         }
                     }
 
-                    if keysym == f2_keysym {
+                    if keysym == f2_keysym && keymodifier == key_modifier::MOD1MASK {
                         std::process::exit(0);
                     }
 
-                    if keysym == f3_keysym {
+                    if keysym == f3_keysym && keymodifier == key_modifier::NONEMASK {
                         let filename_c = CString::new(current_exe.as_bytes()).unwrap();
                         let mut slice : &mut [*const i8; 2] = &mut [
                             filename_c.as_ptr(),
