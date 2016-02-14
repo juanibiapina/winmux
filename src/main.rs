@@ -1,16 +1,21 @@
 extern crate libc;
 extern crate x11;
 
+use std::env;
+use std::ptr::null;
 use std::ffi::CString;
 use std::mem::zeroed;
 
-use libc::{c_int, c_uint};
+use libc::{c_int, c_uint, execvp};
 
 use x11::xlib;
 
 fn max(a : c_int, b : c_int) -> c_uint { if a > b { a as c_uint } else { b as c_uint } }
 
 fn main() {
+    println!("{}", "Starting winmux");
+    let filename = env::current_dir().unwrap().join(&env::current_exe().unwrap().as_path());
+
     let mut arg0 = 0x0 as i8;
     let display : *mut xlib::Display = unsafe { xlib::XOpenDisplay(&mut arg0) };
 
@@ -23,14 +28,20 @@ fn main() {
 
     let f1 = CString::new("F1").unwrap();
     let f2 = CString::new("F2").unwrap();
+    let f3 = CString::new("F3").unwrap();
 
     let f1_keysym = unsafe { xlib::XStringToKeysym(f1.as_ptr()) };
     let f2_keysym = unsafe { xlib::XStringToKeysym(f2.as_ptr()) };
+    let f3_keysym = unsafe { xlib::XStringToKeysym(f3.as_ptr()) };
+
     unsafe {
         xlib::XGrabKey(display, xlib::XKeysymToKeycode(display, f1_keysym) as c_int, xlib::Mod1Mask,
         xlib::XDefaultRootWindow(display), true as c_int, xlib::GrabModeAsync, xlib::GrabModeAsync);
 
         xlib::XGrabKey(display, xlib::XKeysymToKeycode(display, f2_keysym) as c_int, xlib::Mod1Mask,
+        xlib::XDefaultRootWindow(display), true as c_int, xlib::GrabModeAsync, xlib::GrabModeAsync);
+
+        xlib::XGrabKey(display, xlib::XKeysymToKeycode(display, f3_keysym) as c_int, xlib::Mod1Mask,
         xlib::XDefaultRootWindow(display), true as c_int, xlib::GrabModeAsync, xlib::GrabModeAsync);
 
         xlib::XGrabButton(display, 1, xlib::Mod1Mask, xlib::XDefaultRootWindow(display), true as c_int,
@@ -61,6 +72,16 @@ fn main() {
 
                     if keysym == f2_keysym {
                         std::process::exit(0);
+                    }
+
+                    if keysym == f3_keysym {
+                        let filename_c = CString::new(filename.to_str().unwrap().as_bytes()).unwrap();
+                        let mut slice : &mut [*const i8; 2] = &mut [
+                            filename_c.as_ptr(),
+                            null(),
+                        ];
+                        execvp(filename_c.as_ptr(), slice.as_mut_ptr());
+                        panic!("failed to reload");
                     }
                 },
                 xlib::ButtonPress => {
