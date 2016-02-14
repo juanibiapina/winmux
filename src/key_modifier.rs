@@ -12,3 +12,8 @@ bitflags! {
     }
 }
 
+impl KeyModifier {
+    pub fn get_mask(&self) -> u32 {
+        self.bits()
+    }
+}

@@ -7,13 +7,15 @@ use std::env;
 use std::ptr::null;
 use std::ffi::CString;
 use std::mem::zeroed;
+use std::collections::HashMap;
 
 use libc::{c_int, c_uint, execvp};
-
 use x11::xlib;
 
 use winmux::key_modifier;
 use winmux::key_modifier::KeyModifier;
+use winmux::key_command::KeyCommand;
+use winmux::actions::Actions;
 
 fn max(a : c_int, b : c_int) -> c_uint { if a > b { a as c_uint } else { b as c_uint } }
 
@@ -28,23 +30,17 @@ fn main() {
         panic!("Cannot open display");
     }
 
-    let f1 = CString::new("F1").unwrap();
-    let f2 = CString::new("F2").unwrap();
-    let f3 = CString::new("F3").unwrap();
+    let mut actions = HashMap::new();
 
-    let f1_keysym = unsafe { xlib::XStringToKeysym(f1.as_ptr()) };
-    let f2_keysym = unsafe { xlib::XStringToKeysym(f2.as_ptr()) };
-    let f3_keysym = unsafe { xlib::XStringToKeysym(f3.as_ptr()) };
+    actions.insert(KeyCommand::from_str("F1", key_modifier::NONEMASK), Actions::RaiseWindowUnderCursor);
+    actions.insert(KeyCommand::from_str("F2", key_modifier::MOD1MASK), Actions::QuitWinmux);
+    actions.insert(KeyCommand::from_str("F3", key_modifier::NONEMASK), Actions::ReloadWinmux);
 
     unsafe {
-        xlib::XGrabKey(display, xlib::XKeysymToKeycode(display, f1_keysym) as c_int, xlib::AnyModifier,
-        xlib::XDefaultRootWindow(display), true as c_int, xlib::GrabModeAsync, xlib::GrabModeAsync);
-
-        xlib::XGrabKey(display, xlib::XKeysymToKeycode(display, f2_keysym) as c_int, xlib::AnyModifier,
-        xlib::XDefaultRootWindow(display), true as c_int, xlib::GrabModeAsync, xlib::GrabModeAsync);
-
-        xlib::XGrabKey(display, xlib::XKeysymToKeycode(display, f3_keysym) as c_int, xlib::AnyModifier,
-        xlib::XDefaultRootWindow(display), true as c_int, xlib::GrabModeAsync, xlib::GrabModeAsync);
+        for key_command in actions.keys() {
+            xlib::XGrabKey(display, xlib::XKeysymToKeycode(display, key_command.get_keysym()) as c_int, key_command.get_mask(),
+            xlib::XDefaultRootWindow(display), true as c_int, xlib::GrabModeAsync, xlib::GrabModeAsync);
+        }
 
         xlib::XGrabButton(display, 1, xlib::Mod1Mask, xlib::XDefaultRootWindow(display), true as c_int,
         (xlib::ButtonPressMask|xlib::ButtonReleaseMask|xlib::PointerMotionMask) as c_uint, xlib::GrabModeAsync, xlib::GrabModeAsync,
@@ -68,26 +64,32 @@ fn main() {
             match event.get_type() {
                 xlib::KeyPress => {
                     let event: xlib::XKeyEvent = From::from(event);
+
                     let keysym = xlib::XKeycodeToKeysym(display, event.keycode as u8, 0) as u64;
                     let keymodifier = KeyModifier::from_bits(0xEF & event.state as u32).unwrap();
-                    if keysym == f1_keysym && keymodifier == key_modifier::NONEMASK {
-                        if event.subwindow != 0 {
-                            xlib::XRaiseWindow(display, event.subwindow);
-                        }
-                    }
+                    let key_command = KeyCommand::new(keysym, keymodifier);
 
-                    if keysym == f2_keysym && keymodifier == key_modifier::MOD1MASK {
-                        std::process::exit(0);
-                    }
-
-                    if keysym == f3_keysym && keymodifier == key_modifier::NONEMASK {
-                        let filename_c = CString::new(current_exe.as_bytes()).unwrap();
-                        let mut slice : &mut [*const i8; 2] = &mut [
-                            filename_c.as_ptr(),
-                            null(),
-                        ];
-                        execvp(filename_c.as_ptr(), slice.as_mut_ptr());
-                        panic!("failed to reload");
+                    match actions.get(&key_command) {
+                        Some(action) => {
+                            match *action {
+                                Actions::RaiseWindowUnderCursor => {
+                                    xlib::XRaiseWindow(display, event.subwindow);
+                                },
+                                Actions::QuitWinmux => {
+                                    std::process::exit(0);
+                                },
+                                Actions::ReloadWinmux => {
+                                    let filename_c = CString::new(current_exe.as_bytes()).unwrap();
+                                    let mut slice : &mut [*const i8; 2] = &mut [
+                                        filename_c.as_ptr(),
+                                        null(),
+                                    ];
+                                    execvp(filename_c.as_ptr(), slice.as_mut_ptr());
+                                    panic!("failed to reload");
+                                }
+                            }
+                        },
+                        None => {},
                     }
                 },
                 xlib::ButtonPress => {
