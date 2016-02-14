@@ -17,15 +17,11 @@ fn main() {
 
     let filename = env::current_exe().unwrap().as_path().to_str().unwrap().to_string();
 
-    let mut arg0 = 0x0 as i8;
-    let display : *mut xlib::Display = unsafe { xlib::XOpenDisplay(&mut arg0) };
+    let display : *mut xlib::Display = unsafe { xlib::XOpenDisplay(null()) };
 
     if display.is_null() {
         std::process::exit(1);
     }
-
-    let mut attr: xlib::XWindowAttributes = unsafe { zeroed() };
-    let mut start: xlib::XButtonEvent = unsafe { zeroed() };
 
     let f1 = CString::new("F1").unwrap();
     let f2 = CString::new("F2").unwrap();
@@ -53,12 +49,15 @@ fn main() {
         0, 0);
     };
 
-    start.subwindow = 0;
+    let mut attr: xlib::XWindowAttributes = unsafe { zeroed() };
 
-    let mut event: xlib::XEvent = unsafe { zeroed() };
+    let mut start: xlib::XButtonEvent = unsafe { zeroed() };
+    start.subwindow = 0;
 
     loop {
         unsafe {
+            let mut event: xlib::XEvent = zeroed();
+
             xlib::XNextEvent(display, &mut event);
 
             match event.get_type() {
@@ -86,17 +85,17 @@ fn main() {
                     }
                 },
                 xlib::ButtonPress => {
-                    let xbutton: xlib::XButtonEvent = From::from(event);
-                    if xbutton.subwindow != 0 {
-                        xlib::XGetWindowAttributes(display, xbutton.subwindow, &mut attr);
-                        start = xbutton;
+                    let event: xlib::XButtonEvent = From::from(event);
+                    if event.subwindow != 0 {
+                        xlib::XGetWindowAttributes(display, event.subwindow, &mut attr);
+                        start = event;
                     }
                 },
                 xlib::MotionNotify => {
                     if start.subwindow != 0 {
-                        let xbutton: xlib::XButtonEvent = From::from(event);
-                        let xdiff : c_int = xbutton.x_root - start.x_root;
-                        let ydiff : c_int = xbutton.y_root - start.y_root;
+                        let event: xlib::XButtonEvent = From::from(event);
+                        let xdiff : c_int = event.x_root - start.x_root;
+                        let ydiff : c_int = event.y_root - start.y_root;
                         xlib::XMoveResizeWindow(display, start.subwindow,
                                                 attr.x + (if start.button==1 { xdiff } else { 0 }),
                                                 attr.y + (if start.button==1 { ydiff } else { 0 }),
