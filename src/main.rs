@@ -71,7 +71,7 @@ fn main() {
 
             match event.get_type() {
                 xlib::KeyPress => {
-                    let event: xlib::XKeyEvent = From::from(event);
+                    let event = xlib::XKeyEvent::from(event);
 
                     let keysym = xlib::XKeycodeToKeysym(display, event.keycode as u8, 0) as u64;
                     let keymodifier = KeyModifier::from_bits(0xEF & event.state as u32).unwrap();
@@ -101,7 +101,7 @@ fn main() {
                     }
                 },
                 xlib::ButtonPress => {
-                    let event: xlib::XButtonEvent = From::from(event);
+                    let event = xlib::XButtonEvent::from(event);
                     if event.subwindow != 0 {
                         xlib::XGetWindowAttributes(display, event.subwindow, &mut attr);
                         start = event;
@@ -109,7 +109,7 @@ fn main() {
                 },
                 xlib::MotionNotify => {
                     if start.subwindow != 0 {
-                        let event: xlib::XButtonEvent = From::from(event);
+                        let event = xlib::XButtonEvent::from(event);
                         let xdiff : c_int = event.x_root - start.x_root;
                         let ydiff : c_int = event.y_root - start.y_root;
                         xlib::XMoveResizeWindow(display, start.subwindow,
@@ -123,12 +123,12 @@ fn main() {
                     start.subwindow = 0;
                 },
                 xlib::MapRequest => {
-                    let event: xlib::XMapRequestEvent = From::from(event);
+                    let event = xlib::XMapRequestEvent::from(event);
                     let window = event.window;
                     xlib::XMapWindow(display, window);
                 },
                 xlib::ConfigureRequest => {
-                    let event: xlib::XConfigureRequestEvent = From::from(event);
+                    let event = xlib::XConfigureRequestEvent::from(event);
                     let window = event.window;
                     let mask = event.value_mask;
                     let mut window_changes = xlib::XWindowChanges {
