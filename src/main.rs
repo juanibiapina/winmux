@@ -20,7 +20,7 @@ fn main() {
     let display : *mut xlib::Display = unsafe { xlib::XOpenDisplay(null()) };
 
     if display.is_null() {
-        std::process::exit(1);
+        panic!("Cannot open display");
     }
 
     let f1 = CString::new("F1").unwrap();
