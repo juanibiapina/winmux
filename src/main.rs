@@ -15,7 +15,7 @@ fn max(a : c_int, b : c_int) -> c_uint { if a > b { a as c_uint } else { b as c_
 fn main() {
     println!("{}", "Starting winmux");
 
-    let filename = env::current_exe().unwrap().as_path().to_str().unwrap().to_string();
+    let current_exe = env::current_exe().unwrap().as_path().to_str().unwrap().to_string();
 
     let display : *mut xlib::Display = unsafe { xlib::XOpenDisplay(null()) };
 
@@ -75,7 +75,7 @@ fn main() {
                     }
 
                     if keysym == f3_keysym {
-                        let filename_c = CString::new(filename.as_bytes()).unwrap();
+                        let filename_c = CString::new(current_exe.as_bytes()).unwrap();
                         let mut slice : &mut [*const i8; 2] = &mut [
                             filename_c.as_ptr(),
                             null(),
