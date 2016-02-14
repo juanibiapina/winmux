@@ -30,6 +30,9 @@ fn main() {
         panic!("Cannot open display");
     }
 
+    let screen = unsafe { xlib::XDefaultScreenOfDisplay(display) };
+    let root_window = unsafe { xlib::XRootWindowOfScreen(screen) };
+
     let mut actions = HashMap::new();
 
     actions.insert(KeyCommand::from_str("F1", key_modifier::NONEMASK), Actions::RaiseWindowUnderCursor);
@@ -37,17 +40,22 @@ fn main() {
     actions.insert(KeyCommand::from_str("F3", key_modifier::NONEMASK), Actions::ReloadWinmux);
 
     unsafe {
+        // keyboard events
         for key_command in actions.keys() {
             xlib::XGrabKey(display, xlib::XKeysymToKeycode(display, key_command.get_keysym()) as c_int, key_command.get_mask(),
             xlib::XDefaultRootWindow(display), true as c_int, xlib::GrabModeAsync, xlib::GrabModeAsync);
         }
 
+        // mouse events
         xlib::XGrabButton(display, 1, xlib::Mod1Mask, xlib::XDefaultRootWindow(display), true as c_int,
         (xlib::ButtonPressMask|xlib::ButtonReleaseMask|xlib::PointerMotionMask) as c_uint, xlib::GrabModeAsync, xlib::GrabModeAsync,
         0, 0);
         xlib::XGrabButton(display, 3, xlib::Mod1Mask, xlib::XDefaultRootWindow(display), true as c_int,
         (xlib::ButtonPressMask|xlib::ButtonReleaseMask|xlib::PointerMotionMask) as c_uint, xlib::GrabModeAsync, xlib::GrabModeAsync,
         0, 0);
+
+        // window events
+        xlib::XSelectInput(display, root_window, xlib::SubstructureRedirectMask);
     };
 
     let mut attr: xlib::XWindowAttributes = unsafe { zeroed() };
@@ -114,7 +122,32 @@ fn main() {
                 xlib::ButtonRelease => {
                     start.subwindow = 0;
                 },
-                _ => {}
+                xlib::MapRequest => {
+                    let event: xlib::XMapRequestEvent = From::from(event);
+                    let window = event.window;
+                    xlib::XMapWindow(display, window);
+                },
+                xlib::ConfigureRequest => {
+                    let event: xlib::XConfigureRequestEvent = From::from(event);
+                    let window = event.window;
+                    let mask = event.value_mask;
+                    let mut window_changes = xlib::XWindowChanges {
+                        x: event.x,
+                        y: event.y,
+                        width: event.width,
+                        height: event.height,
+                        border_width: event.border_width,
+                        stack_mode: event.detail,
+                        sibling: event.above,
+                    };
+                    xlib::XConfigureWindow(display, window, mask as u32, &mut window_changes);
+                },
+                xlib::CirculateRequest => {
+                    println!("Event circulate request");
+                },
+                _ => {
+                    println!("Event {} not handled", event.get_type());
+                }
             };
         }
     }
