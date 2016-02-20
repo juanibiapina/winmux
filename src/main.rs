@@ -20,7 +20,7 @@ use winmux::actions::Actions;
 fn max(a : c_int, b : c_int) -> c_uint { if a > b { a as c_uint } else { b as c_uint } }
 
 fn main() {
-    println!("{}", "Starting winmux");
+    println!("Starting winmux");
 
     let current_exe = env::current_exe().unwrap().as_path().to_str().unwrap().to_string();
 
