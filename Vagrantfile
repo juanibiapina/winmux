@@ -12,6 +12,7 @@ Vagrant.configure(2) do |config|
     apt-get update
     apt-get install xorg
     apt-get install xorg-dev
+    apt-get install virtualbox-guest-dkms virtualbox-guest-utils virtualbox-guest-x11
 
     curl -sSf https://static.rust-lang.org/rustup.sh | sh -s -- --yes
   SHELL
