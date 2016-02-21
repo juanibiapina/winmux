@@ -8,9 +8,12 @@ use winmux::key_modifier;
 use winmux::key_command::KeyCommand;
 use winmux::action::Action;
 use winmux::window_manager::WindowManager;
+use winmux::window_system::WindowSystem;
 
 fn main() {
-    let mut window_manager = WindowManager::new();
+    let window_system = WindowSystem::new();
+
+    let mut window_manager = WindowManager::new(&window_system);
 
     let mut actions = HashMap::new();
 

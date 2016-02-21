@@ -14,45 +14,35 @@ use self::x11::xlib;
 use key_command::KeyCommand;
 use key_modifier::KeyModifier;
 use action::Action;
+use window_system::WindowSystem;
 
 fn max(a : c_int, b : c_int) -> c_uint { if a > b { a as c_uint } else { b as c_uint } }
 
-pub struct WindowManager {
+pub struct WindowManager<'a> {
     current_exe: String,
     display: *mut xlib::Display,
     actions: HashMap<KeyCommand, Action>,
+    window_system: &'a WindowSystem,
 }
 
-impl WindowManager {
-    pub fn new() -> WindowManager {
+impl<'a> WindowManager<'a> {
+    pub fn new(window_system: &'a WindowSystem) -> WindowManager<'a> {
         println!("Starting winmux");
 
         let current_exe = env::current_exe().unwrap().as_path().to_str().unwrap().to_string();
 
-        let display: *mut xlib::Display = unsafe { xlib::XOpenDisplay(null()) };
-
-        if display.is_null() {
-            panic!("Cannot open display");
-        }
+        let display = window_system.display;
 
         // window events
-        unsafe {
-            xlib::XSelectInput(display, xlib::XDefaultRootWindow(display), xlib::SubstructureRedirectMask);
-        }
+        window_system.select_input(xlib::SubstructureRedirectMask);
 
         // mouse events
-        unsafe {
-            xlib::XGrabButton(display, 1, xlib::Mod1Mask, xlib::XDefaultRootWindow(display), true as c_int,
-            (xlib::ButtonPressMask|xlib::ButtonReleaseMask|xlib::PointerMotionMask) as c_uint, xlib::GrabModeAsync, xlib::GrabModeAsync,
-            0, 0);
-            xlib::XGrabButton(display, 3, xlib::Mod1Mask, xlib::XDefaultRootWindow(display), true as c_int,
-            (xlib::ButtonPressMask|xlib::ButtonReleaseMask|xlib::PointerMotionMask) as c_uint, xlib::GrabModeAsync, xlib::GrabModeAsync,
-            0, 0);
-        };
-
+        window_system.grab_button(1, xlib::Mod1Mask);
+        window_system.grab_button(3, xlib::Mod1Mask);
 
         WindowManager {
             current_exe: current_exe,
+            window_system: window_system,
             display: display,
             actions: HashMap::new(),
         }
@@ -74,12 +64,8 @@ impl WindowManager {
         self.actions = actions;
 
         for key_command in self.actions.keys() {
-            unsafe {
-                xlib::XGrabKey(self.display, xlib::XKeysymToKeycode(self.display, key_command.get_keysym()) as c_int, key_command.get_mask(),
-                xlib::XDefaultRootWindow(self.display), true as c_int, xlib::GrabModeAsync, xlib::GrabModeAsync);
-            }
+            self.window_system.grab_key(&key_command);
         }
-
     }
 
     pub fn run(&self) {
