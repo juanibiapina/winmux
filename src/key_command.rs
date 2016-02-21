@@ -6,7 +6,7 @@ use self::x11::xlib;
 
 use key_modifier::KeyModifier;
 
-#[derive(Eq, PartialEq, Hash)]
+#[derive(Eq, PartialEq, Hash, Clone)]
 pub struct KeyCommand {
     key: u64,
     modifier: KeyModifier,

@@ -3,7 +3,6 @@ extern crate x11;
 
 use std::env;
 use std::process::exit;
-use std::mem::zeroed;
 use std::ptr::null;
 use std::ffi::CString;
 use std::collections::HashMap;
@@ -12,11 +11,18 @@ use self::libc::{c_int, c_uint, execvp};
 use self::x11::xlib;
 
 use key_command::KeyCommand;
-use key_modifier::KeyModifier;
+use mouse_command::MouseCommand;
 use action::Action;
+use event::Event;
 use window_system::WindowSystem;
 
-fn max(a : c_int, b : c_int) -> c_uint { if a > b { a as c_uint } else { b as c_uint } }
+fn max(a : c_int, b : c_int) -> c_uint {
+    if a > b {
+        a as c_uint
+    } else {
+        b as c_uint
+    }
+}
 
 pub struct WindowManager<'a> {
     current_exe: String,
@@ -37,8 +43,8 @@ impl<'a> WindowManager<'a> {
         window_system.select_input(xlib::SubstructureRedirectMask);
 
         // mouse events
-        window_system.grab_button(1, xlib::Mod1Mask);
-        window_system.grab_button(3, xlib::Mod1Mask);
+        window_system.grab_button(&MouseCommand::new(1, xlib::Mod1Mask));
+        window_system.grab_button(&MouseCommand::new(3, xlib::Mod1Mask));
 
         WindowManager {
             current_exe: current_exe,
@@ -69,92 +75,73 @@ impl<'a> WindowManager<'a> {
     }
 
     pub fn run(&self) {
-        let mut attr: xlib::XWindowAttributes = unsafe { zeroed() };
-
-        let mut start: xlib::XButtonEvent = unsafe { zeroed() };
-        start.subwindow = 0;
+        let mut window_attributes = None;
+        let mut last_press_event = None;
 
         loop {
-            unsafe {
-                let mut event: xlib::XEvent = zeroed();
+            let event = self.window_system.next_event();
 
-                xlib::XNextEvent(self.display, &mut event);
-
-                match event.get_type() {
-                    xlib::KeyPress => {
-                        let event = xlib::XKeyEvent::from(event);
-
-                        let keysym = xlib::XKeycodeToKeysym(self.display, event.keycode as u8, 0) as u64;
-                        let keymodifier = KeyModifier::from_bits(0xEF & event.state as u32).unwrap();
-                        let key_command = KeyCommand::new(keysym, keymodifier);
-
-                        match self.actions.get(&key_command) {
-                            Some(action) => {
-                                match *action {
-                                    Action::RaiseWindowUnderCursor => {
-                                        xlib::XRaiseWindow(self.display, event.subwindow);
-                                    },
-                                    Action::QuitWinmux => {
-                                        exit(0);
-                                    },
-                                    Action::ReloadWinmux => {
-                                        self.reload();
-                                    }
+            match event {
+                Event::KeyPress(window, key_command) => {
+                    match self.actions.get(&key_command) {
+                        Some(action) => {
+                            match *action {
+                                Action::RaiseWindowUnderCursor => {
+                                    self.window_system.raise_window(&window);
+                                },
+                                Action::QuitWinmux => {
+                                    exit(0);
+                                },
+                                Action::ReloadWinmux => {
+                                    self.reload();
                                 }
-                            },
-                            None => {},
-                        }
-                    },
-                    xlib::ButtonPress => {
-                        let event = xlib::XButtonEvent::from(event);
-                        if event.subwindow != 0 {
-                            xlib::XGetWindowAttributes(self.display, event.subwindow, &mut attr);
-                            start = event;
-                        }
-                    },
-                    xlib::MotionNotify => {
-                        if start.subwindow != 0 {
-                            let event = xlib::XButtonEvent::from(event);
-                            let xdiff : c_int = event.x_root - start.x_root;
-                            let ydiff : c_int = event.y_root - start.y_root;
-                            xlib::XMoveResizeWindow(self.display, start.subwindow,
-                                                    attr.x + (if start.button==1 { xdiff } else { 0 }),
-                                                    attr.y + (if start.button==1 { ydiff } else { 0 }),
-                                                    max(1, attr.width + (if start.button==3 { xdiff } else { 0 })),
-                                                    max(1, attr.height + (if start.button==3 { ydiff } else { 0 })));
-                        }
-                    },
-                    xlib::ButtonRelease => {
-                        start.subwindow = 0;
-                    },
-                    xlib::MapRequest => {
-                        let event = xlib::XMapRequestEvent::from(event);
-                        let window = event.window;
-                        xlib::XMapWindow(self.display, window);
-                    },
-                    xlib::ConfigureRequest => {
-                        let event = xlib::XConfigureRequestEvent::from(event);
-                        let window = event.window;
-                        let mask = event.value_mask;
-                        let mut window_changes = xlib::XWindowChanges {
-                            x: event.x,
-                            y: event.y,
-                            width: event.width,
-                            height: event.height,
-                            border_width: event.border_width,
-                            stack_mode: event.detail,
-                            sibling: event.above,
-                        };
-                        xlib::XConfigureWindow(self.display, window, mask as u32, &mut window_changes);
-                    },
-                    xlib::CirculateRequest => {
-                        println!("Event circulate request");
-                    },
-                    _ => {
-                        println!("Event {} not handled", event.get_type());
+                            }
+                        },
+                        None => {},
                     }
-                };
-            }
+                },
+                Event::MapRequest(window) => {
+                    self.window_system.map_window(&window);
+                },
+                Event::ConfigureRequest(window, window_changes) => {
+                    self.window_system.configure_window(&window, &window_changes);
+                },
+                Event::ButtonPress(ref window, _, _, _) => {
+                    window_attributes = Some(self.window_system.get_window_attributes(&window));
+                    last_press_event = Some(event.clone());
+                },
+                Event::ButtonRelease(_, _, _, _) => {
+                    window_attributes = None;
+                    last_press_event = None;
+                },
+                Event::MotionNotify(x_root, y_root) => {
+                    match last_press_event {
+                        Some(ref last_press_event) => {
+                            match last_press_event {
+                                &Event::ButtonPress(ref window, ref mouse_command, last_x_root, last_y_root) => {
+                                    let xdiff = x_root - last_x_root;
+                                    let ydiff = y_root - last_y_root;
+                                    let attr = match window_attributes {
+                                        Some(ref window_attributes) => window_attributes,
+                                        None => panic!("Inconsistent program state"),
+                                    };
+
+                                    self.window_system.move_resize_window(window,
+                                                                          attr.x + (if mouse_command.button_number == 1 { xdiff } else { 0 }),
+                                                                          attr.y + (if mouse_command.button_number == 1 { ydiff } else { 0 }),
+                                                                          max(1, attr.width + (if mouse_command.button_number == 3 { xdiff } else { 0 })),
+                                                                          max(1, attr.height + (if mouse_command.button_number == 3 { ydiff } else { 0 })));
+                                },
+                                _ => {},
+                            };
+                        },
+                        None => {},
+                    };
+                },
+                Event::Unknown(event_type) => {
+                    println!("Event {} not handled", event_type);
+                },
+            };
         }
     }
 }

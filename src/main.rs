@@ -1,7 +1,5 @@
 extern crate winmux;
 
-extern crate libc;
-
 use std::collections::HashMap;
 
 use winmux::key_modifier;
