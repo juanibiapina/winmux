@@ -26,7 +26,6 @@ fn max(a : c_int, b : c_int) -> c_uint {
 
 pub struct WindowManager<'a> {
     current_exe: String,
-    display: *mut xlib::Display,
     actions: HashMap<KeyCommand, Action>,
     window_system: &'a WindowSystem,
 }
@@ -36,8 +35,6 @@ impl<'a> WindowManager<'a> {
         println!("Starting winmux");
 
         let current_exe = env::current_exe().unwrap().as_path().to_str().unwrap().to_string();
-
-        let display = window_system.display;
 
         // window events
         window_system.select_input(xlib::SubstructureRedirectMask);
@@ -49,7 +46,6 @@ impl<'a> WindowManager<'a> {
         WindowManager {
             current_exe: current_exe,
             window_system: window_system,
-            display: display,
             actions: HashMap::new(),
         }
     }
