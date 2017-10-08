@@ -32,8 +32,6 @@ pub struct WindowManager<'a> {
 
 impl<'a> WindowManager<'a> {
     pub fn new(window_system: &'a WindowSystem) -> WindowManager<'a> {
-        println!("Starting winmux");
-
         let current_exe = env::current_exe().unwrap().as_path().to_str().unwrap().to_string();
 
         // window events
@@ -135,7 +133,7 @@ impl<'a> WindowManager<'a> {
                     };
                 },
                 Event::Unknown(event_type) => {
-                    println!("Event {} not handled", event_type);
+                    warn!("event not handled: {}", event_type);
                 },
             };
         }

@@ -1,5 +1,9 @@
 extern crate winmux;
 
+#[macro_use]
+extern crate log;
+extern crate env_logger;
+
 use std::collections::HashMap;
 
 use winmux::key_modifier::KeyModifier;
@@ -9,6 +13,10 @@ use winmux::window_manager::WindowManager;
 use winmux::window_system::WindowSystem;
 
 fn main() {
+    env_logger::init().unwrap();
+
+    info!("starting winmux");
+
     let window_system = WindowSystem::new();
 
     let mut window_manager = WindowManager::new(&window_system);

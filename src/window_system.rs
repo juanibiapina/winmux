@@ -56,6 +56,8 @@ impl WindowSystem {
             xlib::XNextEvent(self.display, &mut xevent);
         }
 
+        info!("event received: {}", xevent.get_type());
+
         match xevent.get_type() {
             xlib::KeyPress => {
                 unsafe {

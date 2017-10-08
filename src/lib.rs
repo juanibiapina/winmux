@@ -1,5 +1,7 @@
 #[macro_use]
 extern crate bitflags;
+#[macro_use]
+extern crate log;
 
 pub mod key_modifier;
 pub mod key_command;
