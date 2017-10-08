@@ -10,7 +10,7 @@ use self::x11::xlib;
 use key_command::KeyCommand;
 use mouse_command::MouseCommand;
 use key_modifier::KeyModifier;
-use event::Event;
+use event::{Event, event_name};
 use window::{Window, WindowChanges, WindowAttributes};
 
 pub struct WindowSystem {
@@ -56,7 +56,7 @@ impl WindowSystem {
             xlib::XNextEvent(self.display, &mut xevent);
         }
 
-        info!("event received: {}", xevent.get_type());
+        info!("event received: {}", event_name(xevent.get_type()));
 
         match xevent.get_type() {
             xlib::KeyPress => {

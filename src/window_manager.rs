@@ -13,7 +13,7 @@ use self::x11::xlib;
 use key_command::KeyCommand;
 use mouse_command::MouseCommand;
 use action::Action;
-use event::Event;
+use event::{Event, event_name};
 use window_system::WindowSystem;
 
 fn max(a : c_int, b : c_int) -> c_uint {
@@ -133,7 +133,7 @@ impl<'a> WindowManager<'a> {
                     };
                 },
                 Event::Unknown(event_type) => {
-                    warn!("event not handled: {}", event_type);
+                    warn!("event not handled: {}", event_name(event_type));
                 },
             };
         }
