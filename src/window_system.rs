@@ -4,11 +4,10 @@ extern crate x11;
 use std::ptr::null;
 use std::mem::zeroed;
 
-use self::libc::{c_int, c_uint, c_long};
+use self::libc::{c_int, c_long};
 use self::x11::xlib;
 
 use key_command::KeyCommand;
-use mouse_command::MouseCommand;
 use key_modifier::KeyModifier;
 use event::{Event, event_name};
 use window::{Window, WindowChanges, WindowAttributes};
@@ -33,12 +32,6 @@ impl WindowSystem {
     pub fn select_input(&self, event_mask: c_long) {
         unsafe {
             xlib::XSelectInput(self.display, xlib::XDefaultRootWindow(self.display), event_mask);
-        }
-    }
-
-    pub fn grab_button(&self, mouse_command: &MouseCommand) {
-        unsafe {
-            xlib::XGrabButton(self.display, mouse_command.button_number, mouse_command.modifiers as c_uint, xlib::XDefaultRootWindow(self.display), true as c_int, (xlib::ButtonPressMask|xlib::ButtonReleaseMask|xlib::PointerMotionMask) as c_uint, xlib::GrabModeAsync, xlib::GrabModeAsync, 0, 0);
         }
     }
 
@@ -92,20 +85,6 @@ impl WindowSystem {
                 };
 
                 Event::ConfigureRequest(window, window_changes)
-            },
-            xlib::ButtonPress => {
-                let xevent = xlib::XButtonEvent::from(xevent);
-                let mouse_command = MouseCommand::new(xevent.button, xevent.state);
-                Event::ButtonPress(Window::from(xevent.subwindow), mouse_command, xevent.x_root, xevent.y_root)
-            },
-            xlib::ButtonRelease => {
-                let xevent = xlib::XButtonEvent::from(xevent);
-                let mouse_command = MouseCommand::new(xevent.button, xevent.state);
-                Event::ButtonRelease(Window::from(xevent.subwindow), mouse_command, xevent.x_root, xevent.y_root)
-            },
-            xlib::MotionNotify => {
-                let xevent = xlib::XButtonEvent::from(xevent);
-                Event::MotionNotify(xevent.x_root, xevent.y_root)
             },
             _ => {
                 Event::Unknown(xevent.get_type())

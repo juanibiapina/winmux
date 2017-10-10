@@ -5,7 +5,6 @@ extern crate log;
 
 pub mod key_modifier;
 pub mod key_command;
-pub mod mouse_command;
 pub mod action;
 pub mod event;
 pub mod window;

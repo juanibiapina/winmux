@@ -7,22 +7,13 @@ use std::ptr::null;
 use std::ffi::CString;
 use std::collections::HashMap;
 
-use self::libc::{c_int, c_uint, execvp};
+use self::libc::execvp;
 use self::x11::xlib;
 
 use key_command::KeyCommand;
-use mouse_command::MouseCommand;
 use action::Action;
 use event::{Event, event_name};
 use window_system::WindowSystem;
-
-fn max(a : c_int, b : c_int) -> c_uint {
-    if a > b {
-        a as c_uint
-    } else {
-        b as c_uint
-    }
-}
 
 pub struct WindowManager<'a> {
     current_exe: String,
@@ -36,10 +27,6 @@ impl<'a> WindowManager<'a> {
 
         // window events
         window_system.select_input(xlib::SubstructureRedirectMask);
-
-        // mouse events
-        window_system.grab_button(&MouseCommand::new(1, xlib::Mod1Mask));
-        window_system.grab_button(&MouseCommand::new(3, xlib::Mod1Mask));
 
         WindowManager {
             current_exe: current_exe,
@@ -69,9 +56,6 @@ impl<'a> WindowManager<'a> {
     }
 
     pub fn run(&self) {
-        let mut window_attributes = None;
-        let mut last_press_event = None;
-
         loop {
             let event = self.window_system.next_event();
 
@@ -99,38 +83,6 @@ impl<'a> WindowManager<'a> {
                 },
                 Event::ConfigureRequest(window, window_changes) => {
                     self.window_system.configure_window(&window, &window_changes);
-                },
-                Event::ButtonPress(ref window, _, _, _) => {
-                    window_attributes = Some(self.window_system.get_window_attributes(&window));
-                    last_press_event = Some(event.clone());
-                },
-                Event::ButtonRelease(_, _, _, _) => {
-                    window_attributes = None;
-                    last_press_event = None;
-                },
-                Event::MotionNotify(x_root, y_root) => {
-                    match last_press_event {
-                        Some(ref last_press_event) => {
-                            match last_press_event {
-                                &Event::ButtonPress(ref window, ref mouse_command, last_x_root, last_y_root) => {
-                                    let xdiff = x_root - last_x_root;
-                                    let ydiff = y_root - last_y_root;
-                                    let attr = match window_attributes {
-                                        Some(ref window_attributes) => window_attributes,
-                                        None => panic!("Inconsistent program state"),
-                                    };
-
-                                    self.window_system.move_resize_window(window,
-                                                                          attr.x + (if mouse_command.button_number == 1 { xdiff } else { 0 }),
-                                                                          attr.y + (if mouse_command.button_number == 1 { ydiff } else { 0 }),
-                                                                          max(1, attr.width + (if mouse_command.button_number == 3 { xdiff } else { 0 })),
-                                                                          max(1, attr.height + (if mouse_command.button_number == 3 { ydiff } else { 0 })));
-                                },
-                                _ => {},
-                            };
-                        },
-                        None => {},
-                    };
                 },
                 Event::Unknown(event_type) => {
                     warn!("event not handled: {}", event_name(event_type));
