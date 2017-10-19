@@ -14,11 +14,14 @@ use key_command::KeyCommand;
 use action::Action;
 use event::{Event, event_name};
 use window_system::WindowSystem;
+use screen::Screen;
+use window::WindowChanges;
 
 pub struct WindowManager<'a> {
     current_exe: String,
     actions: HashMap<KeyCommand, Action>,
     window_system: &'a WindowSystem,
+    screen: Screen,
 }
 
 impl<'a> WindowManager<'a> {
@@ -28,10 +31,14 @@ impl<'a> WindowManager<'a> {
         // window events
         window_system.select_input(xlib::SubstructureRedirectMask);
 
+        let screen = window_system.get_screen(0);
+
         WindowManager {
             current_exe: current_exe,
             window_system: window_system,
             actions: HashMap::new(),
+
+            screen: screen,
         }
     }
 
@@ -82,7 +89,18 @@ impl<'a> WindowManager<'a> {
                     self.window_system.map_window(&window);
                 },
                 Event::ConfigureRequest(window, window_changes) => {
-                    self.window_system.configure_window(&window, &window_changes);
+                    let full_screen = WindowChanges {
+                        x: 0,
+                        y: 0,
+                        width: self.screen.width as i32,
+                        height: self.screen.height as i32,
+                        border_width: window_changes.border_width,
+                        sibling: window_changes.sibling,
+                        stack_mode: window_changes.stack_mode,
+                        mask: window_changes.mask,
+                    };
+
+                    self.window_system.configure_window(&window, &full_screen);
                 },
                 Event::Unknown(event_type) => {
                     warn!("event not handled: {}", event_name(event_type));

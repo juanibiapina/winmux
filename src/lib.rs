@@ -7,6 +7,7 @@ pub mod key_modifier;
 pub mod key_command;
 pub mod action;
 pub mod event;
+pub mod screen;
 pub mod window;
 pub mod window_system;
 pub mod window_manager;

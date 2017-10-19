@@ -11,6 +11,7 @@ use key_command::KeyCommand;
 use key_modifier::KeyModifier;
 use event::{Event, event_name};
 use window::{Window, WindowChanges, WindowAttributes};
+use screen::Screen;
 
 pub struct WindowSystem {
     pub display: *mut xlib::Display,
@@ -139,5 +140,20 @@ impl WindowSystem {
         unsafe {
             xlib::XMoveResizeWindow(self.display, window.get_x_window(), x, y, width, height);
         }
+    }
+
+    pub fn get_screen(&self, screen_number: usize) -> Screen {
+        Screen {
+            width: self.get_display_width(screen_number),
+            height: self.get_display_height(screen_number),
+        }
+    }
+
+    fn get_display_width(&self, screen: usize) -> u32 {
+        unsafe { xlib::XDisplayWidth(self.display, screen as i32) as u32 }
+    }
+
+    fn get_display_height(&self, screen: usize) -> u32 {
+        unsafe { xlib::XDisplayHeight(self.display, screen as i32) as u32 }
     }
 }
