@@ -13,7 +13,7 @@ use winmux::window_manager::WindowManager;
 use winmux::window_system::WindowSystem;
 
 fn main() {
-    env_logger::init().unwrap();
+    env_logger::init();
 
     info!("starting winmux");
 

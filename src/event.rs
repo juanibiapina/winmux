@@ -2,8 +2,8 @@ extern crate libc;
 
 use self::libc::c_int;
 
-use key_command::KeyCommand;
-use window::{Window, WindowChanges};
+use crate::key_command::KeyCommand;
+use crate::window::{Window, WindowChanges};
 
 #[derive(Clone)]
 pub enum Event {

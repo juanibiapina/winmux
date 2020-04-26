@@ -4,7 +4,7 @@ use std::ffi::CString;
 
 use self::x11::xlib;
 
-use key_modifier::KeyModifier;
+use crate::key_modifier::KeyModifier;
 
 #[derive(Eq, PartialEq, Hash, Clone)]
 pub struct KeyCommand {

@@ -10,10 +10,10 @@ use std::collections::HashMap;
 use self::libc::execvp;
 use self::x11::xlib;
 
-use key_command::KeyCommand;
-use action::Action;
-use event::{Event, event_name};
-use window_system::WindowSystem;
+use crate::key_command::KeyCommand;
+use crate::action::Action;
+use crate::event::{Event, event_name};
+use crate::window_system::WindowSystem;
 
 pub struct WindowManager<'a> {
     current_exe: String,
@@ -37,7 +37,7 @@ impl<'a> WindowManager<'a> {
 
     pub fn reload(&self) {
         let filename_c = CString::new(self.current_exe.as_bytes()).unwrap();
-        let mut slice : &mut [*const i8; 2] = &mut [
+        let slice : &mut [*const i8; 2] = &mut [
             filename_c.as_ptr(),
             null(),
         ];

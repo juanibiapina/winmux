@@ -7,10 +7,10 @@ use std::mem::zeroed;
 use self::libc::{c_int, c_long};
 use self::x11::xlib;
 
-use key_command::KeyCommand;
-use key_modifier::KeyModifier;
-use event::{Event, event_name};
-use window::{Window, WindowChanges, WindowAttributes};
+use crate::key_command::KeyCommand;
+use crate::key_modifier::KeyModifier;
+use crate::event::{Event, event_name};
+use crate::window::{Window, WindowChanges, WindowAttributes};
 
 pub struct WindowSystem {
     pub display: *mut xlib::Display,
